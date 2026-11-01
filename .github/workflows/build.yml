@@ -1,3 +1,4 @@
+
 name: Build AnimeHub
 
 on:
@@ -17,7 +18,18 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y make tar clang lld
+          sudo apt-get install -y make tar clang lld libicu-dev python3-pil curl
+
+      - name: Install libssl1.1
+        run: |
+          base="https://security.ubuntu.com/ubuntu/pool/main/o/openssl/"
+          ver="$(curl -fsSL "$base" | grep -oE 'libssl1\.1_1\.1\.1f-[0-9a-z.~+]+_amd64\.deb' | sed -E 's/^libssl1\.1_(.*)_amd64\.deb$/\1/' | sort -V | tail -1)"
+          if [ -z "$ver" ]; then
+            echo "Could not find libssl1.1"
+            exit 1
+          fi
+          curl -fsSL "${base}libssl1.1_${ver}_amd64.deb" -o libssl1.1.deb
+          sudo dpkg -i libssl1.1.deb
 
       - name: Download OpenOrbis toolchain
         run: |
@@ -36,13 +48,31 @@ jobs:
           echo "OO_PS4_TOOLCHAIN=$TOOLCHAIN_DIR" >> "$GITHUB_ENV"
           echo "$TOOLCHAIN_DIR/bin/linux" >> "$GITHUB_PATH"
 
-      - name: Compile AnimeHub
+      - name: Create AnimeHub icon
+        run: |
+          mkdir -p sce_sys
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+
+          image = Image.new("RGB", (512, 512), (22, 15, 48))
+          draw = ImageDraw.Draw(image)
+          draw.rounded_rectangle((35, 35, 477, 477), radius=75, fill=(66, 35, 115))
+          draw.ellipse((166, 85, 346, 265), fill=(245, 245, 255))
+          draw.polygon([(225, 130), (225, 220), (300, 175)], fill=(66, 35, 115))
+          font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 43)
+          draw.text((256, 350), "ANIMEHUB", anchor="mm", font=font, fill="white")
+          image.save("sce_sys/icon0.png")
+          PY
+
+      - name: Build AnimeHub package
         run: |
           make clean
           make
 
-      - name: Upload test build
+      - name: Upload AnimeHub package
         uses: actions/upload-artifact@v4
         with:
-          name: AnimeHub-test-build
-          path: eboot.bin
+          name: AnimeHub-package
+          path: |
+            *.pkg
+            eboot.bin
