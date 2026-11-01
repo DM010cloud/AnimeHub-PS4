@@ -1,10 +1,14 @@
+#include <sstream>
+#include <iostream>
 #include <orbis/libkernel.h>
 
-int main() {
-    // Temporary startup test for AnimeHub.
-    while (true) {
-        sceKernelUsleep(1000000);
-    }
+int main(void)
+{
+    int sleepSeconds = 2;
 
-    return 0;
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    sceKernelUsleep(2 * 1000000);
+
+    for (;;) {}
 }
