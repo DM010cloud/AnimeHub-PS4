@@ -1,1 +1,47 @@
 
+name: Build AnimeHub
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out AnimeHub
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y make tar
+
+      - name: Download OpenOrbis toolchain
+        run: |
+          curl -L "https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/download/v0.5.4/toolchain-llvm-18.tar.gz" -o toolchain.tar.gz
+          echo "3c7cd5bb593ca74fa1c13fd59f3938dc0fc07985167f7275063019e63abe4526  toolchain.tar.gz" | sha256sum -c
+          mkdir toolchain
+          tar -xzf toolchain.tar.gz -C toolchain
+
+      - name: Locate toolchain
+        run: |
+          TOOLCHAIN_DIR="$(find "$GITHUB_WORKSPACE/toolchain" -name link.x -printf '%h\n' | head -n 1)"
+          if [ -z "$TOOLCHAIN_DIR" ]; then
+            echo "Could not find the OpenOrbis toolchain"
+            exit 1
+          fi
+          echo "OO_PS4_TOOLCHAIN=$TOOLCHAIN_DIR" >> "$GITHUB_ENV"
+          echo "$TOOLCHAIN_DIR/bin/linux" >> "$GITHUB_PATH"
+
+      - name: Compile AnimeHub
+        run: |
+          make clean
+          make
+
+      - name: Upload test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeHub-test-build
+          path: eboot.bin
